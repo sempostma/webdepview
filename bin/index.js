@@ -4,13 +4,12 @@ const path = require('path')
 const http = require('http')
 const https = require('https')
 const { promisify } = require('util')
-const { URL } = require('url')
 const webdepview = require('../')
 
 const readdir = promisify(fs.readdir)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
-const exists = promisify(fs.exists)
+const access = promisify(fs.access)
 
 const options = process.argv.filter(x => x.startsWith('--'))
 const args = process.argv.filter(x => !x.startsWith('--'))
@@ -21,48 +20,57 @@ const maxPort = 65535
 
 const favicon = 'AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABILAAASCwAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAUwAAACEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAA4AAAAAAAAAAAAAAAAAAAACAAAAXwAAAM4AAAC4AAAAVQAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABUAAAByAAAAEAAAAAAAAAAAAAAAQAAAALYAAADFAAAAwAAAAJEAAAAtAAAADAAAAAQAAAAAAAAAAAAAAAAAAAAdAAAAtAAAAHAAAAABAAAAEgAAAJoAAADDAAAAjAAAAEYAAABJAAAALAAAABgAAAAYAAAACAAAABAAAAAAAAAAJwAAALYAAAC7AAAALQAAAEAAAACYAAAAlAAAAFoAAAAtAAAABgAAAAIAAAAEAAAAFgAAABUAAAAaAAAAFgAAAC8AAAC/AAAAzQAAAHAAAABnAAAAgwAAAGYAAACJAAAAVAAAAA8AAAABAAAAAgAAAAAAAAABAAAAAQAAAAoAAABOAAAAugAAAMwAAACPAAAAegAAAHsAAABiAAAAjgAAAKgAAABgAAAAIwAAAFsAAAAyAAAAAQAAABwAAAAXAAAAhgAAAN0AAADWAAAAjwAAAHoAAACGAAAAcwAAAMUAAAC6AAAAYwAAADkAAAA9AAAALQAAAAsAAAA+AAAAJQAAAHkAAADcAAAA4AAAAIQAAABVAAAAogAAAKIAAADhAAAAsgAAAEIAAAAiAAAAPAAAABIAAAAPAAAAHgAAADgAAAB8AAAAuQAAAMsAAABlAAAAHgAAAKcAAACdAAAAjQAAAHEAAABUAAAAMQAAAEsAAABoAAAAPwAAAAkAAABVAAAAkAAAAIUAAACqAAAALAAAAAAAAABhAAAAnAAAAHUAAAAnAAAAMAAAAGAAAAChAAAAlwAAAIsAAABOAAAAhAAAAJAAAACbAAAAdgAAAAMAAAAAAAAAEQAAAIcAAAClAAAAhwAAAIAAAAClAAAAoQAAAMgAAADLAAAAmgAAALsAAAC0AAAAkgAAABYAAAAAAAAAAAAAAAAAAAAcAAAAjgAAALIAAACsAAAAtwAAAL8AAAC/AAAArQAAAJ0AAACyAAAAkgAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAABgAAAAnwAAALIAAAC7AAAAsgAAAKoAAACQAAAATwAAAA0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMAAAA7AAAAUQAAAEkAAAAuAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAj/IAAMfzAACB8QAAgHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAEAAMADAADgBwAA8B8AAA=='
 
+const exists = async file => {
+  try {
+    await access(file, fs.constants.F_OK)
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
 const throttle = (fn, limit, interval) => {
   if (!Number.isFinite(limit)) {
-    throw new TypeError('Expected `limit` to be a finite number');
+    throw new TypeError('Expected `limit` to be a finite number')
   }
 
   if (!Number.isFinite(interval)) {
-    throw new TypeError('Expected `interval` to be a finite number');
+    throw new TypeError('Expected `interval` to be a finite number')
   }
 
-  const queue = new Map();
+  const queue = new Map()
 
-  let currentTick = 0;
-  let activeCount = 0;
+  let currentTick = 0
+  let activeCount = 0
 
   const throttled = function (...args) {
-    let timeout;
+    let timeout
     return new Promise((resolve, reject) => {
       const execute = () => {
-        resolve(fn.apply(this, args));
-        queue.delete(timeout);
-      };
-
-      const now = Date.now();
-
-      if ((now - currentTick) > interval) {
-        activeCount = 1;
-        currentTick = now;
-      } else if (activeCount < limit) {
-        activeCount++;
-      } else {
-        currentTick += interval;
-        activeCount = 1;
+        resolve(fn.apply(this, args))
+        queue.delete(timeout)
       }
 
-      timeout = setTimeout(execute, currentTick - now);
+      const now = Date.now()
 
-      queue.set(timeout, reject);
-    });
-  };
+      if ((now - currentTick) > interval) {
+        activeCount = 1
+        currentTick = now
+      } else if (activeCount < limit) {
+        activeCount++
+      } else {
+        currentTick += interval
+        activeCount = 1
+      }
 
-  return throttled;
-};
+      timeout = setTimeout(execute, currentTick - now)
+
+      queue.set(timeout, reject)
+    })
+  }
+
+  return throttled
+}
 
 const createServer = (port = 45033, listener) => new Promise((resolve, reject) => {
   const server = http.createServer(listener)
@@ -110,11 +118,13 @@ const run = async directory => {
   }), 10, 1000)
 
   const getDependencySize = async ({ resolved }) => {
-    process.stdout.clearLine();
-    process.stdout.cursorTo(0);
-    process.stdout.write(`Determening size of ${resolved}...`);
-    if (Object.prototype.hasOwnProperty.call(dependencySizeCache, resolved)) return dependencySizeCache[resolved]
-    else return dependencySizeCache[resolved] = await npmSize(resolved)
+    process.stdout.clearLine()
+    process.stdout.cursorTo(0)
+    process.stdout.write(`Determening size of ${resolved}...`)
+    if (Object.prototype.hasOwnProperty.call(dependencySizeCache, resolved) === false) {
+      dependencySizeCache[resolved] = await npmSize(resolved)
+    }
+    return dependencySizeCache[resolved]
   }
 
   try {
@@ -130,8 +140,8 @@ const run = async directory => {
 
       const output = await webdepview({ dependencies, ignoreDev, getDependencySize })
 
-      process.stdout.clearLine();
-      process.stdout.cursorTo(0);
+      process.stdout.clearLine()
+      process.stdout.cursorTo(0)
 
       await writeFile(cacheFile, JSON.stringify(dependencySizeCache))
 
