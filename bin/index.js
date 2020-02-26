@@ -118,6 +118,7 @@ const run = async directory => {
   }), 10, 1000)
 
   const getDependencySize = async ({ resolved }) => {
+    if (typeof resolved === 'undefined') return undefined
     process.stdout.clearLine()
     process.stdout.cursorTo(0)
     process.stdout.write(`Determening size of ${resolved}...`)
