@@ -1,6 +1,6 @@
 {
   "name": "webdepview",
-  "description": "Gives a good indication of your node_modules slug size",
+  "description": "Gives a good indication of your node_modules slug size.",
   "bin": {
     "webdepview": "./bin/index.js"
   },
