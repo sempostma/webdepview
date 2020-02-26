@@ -1,17 +1,27 @@
 {
   "name": "webdepview",
+  "description": "Gives a good indication of your node_modules slug size",
   "bin": {
     "webdepview": "./bin/index.js"
   },
+  "keywords": ["npm", "dependency", "visualization", "dependencies", "node_modules"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sempostma/webdepview.git"
+  },
   "version": "1.0.0",
-  "description": "",
+  "preferGlobal": true,
   "main": "index.js",
   "scripts": {
     "eslint": "eslint --ignore-path .gitignore .",
     "eslint:fix": "eslint --fix --ignore-path .gitignore .",
     "start": "node ./bin"
   },
-  "author": "",
+  "bugs": {
+    "url" : "https://github.com/sempostma/webdepview/issues", 
+    "email" : "webdepview@esstudio.nl"
+  },
+  "author": "Sem Postma",
   "license": "MIT",
   "devDependencies": {
     "eslint": "^6.8.0",
